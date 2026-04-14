@@ -405,7 +405,7 @@ def show_metric(value, label, icon="📊"):
 
 
 def show_notebook_card(nb):
-    """Display notebook with WORKING clickable buttons"""
+    """Display notebook with WORKING clickable buttons and rendered HTML summary"""
     
     # Parse tags safely
     tags = []
@@ -420,7 +420,8 @@ def show_notebook_card(nb):
     # Get values
     name = str(nb.get('name', 'Unnamed Notebook'))
     category = str(nb.get('category', 'Other'))
-    summary = str(nb.get('summary', nb.get('main_goal', 'No summary available')))
+    # This is the AI-generated content that contains HTML tags
+    summary_content = str(nb.get('summary', nb.get('main_goal', 'No summary available')))
     goal = str(nb.get('main_goal', 'Not specified'))
     lines = int(nb.get('total_code_lines', 0) or 0)
     modified = str(nb.get('modified_time', 'Unknown'))[:10]
@@ -431,7 +432,8 @@ def show_notebook_card(nb):
     
     status_html = f'<span class="status-badge status-analyzed">✅ AI Analyzed</span>' if analyzed else f'<span class="status-badge status-pending">⏳ Pending</span>'
     
-    # Display card
+    # Render the card container and the summary content
+    # We use unsafe_allow_html=True so the <p> and <span> tags from the agent actually render
     st.markdown(f"""
     <div class="notebook-card">
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
@@ -445,13 +447,9 @@ def show_notebook_card(nb):
             </div>
         </div>
         
-        <p style="color: #8b949e; margin: 15px 0; line-height: 1.6;">
-            {summary}
-        </p>
-        
-        <p style="color: #8b949e; margin: 10px 0;">
-            <strong style="color: #c9d1d9;">🎯 Goal:</strong> {goal}
-        </p>
+        <div style="margin: 15px 0; border-top: 1px solid #30363d; padding-top: 10px;">
+            {summary_content}
+        </div>
         
         <div style="margin: 15px 0;">
             <strong style="color: #8b949e;">🏷️ Technologies:</strong><br>
@@ -465,7 +463,7 @@ def show_notebook_card(nb):
     </div>
     """, unsafe_allow_html=True)
     
-    # Clickable buttons using Streamlit columns
+    # Clickable buttons using Streamlit native components (placed outside the HTML div for stability)
     col1, col2 = st.columns(2)
     
     with col1:
