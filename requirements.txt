@@ -5,3 +5,9 @@ pandas==2.2.1
 plotly
 google-auth==2.23.0
 google-api-python-client==2.108.0
+google-auth==2.23.0
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+google-api-python-client==2.108.0
+python-dotenv==1.0.0
+sqlalchemy==2.0.23
