@@ -13,6 +13,20 @@ from datetime import datetime
 import subprocess
 import os
 from dotenv import load_dotenv
+import streamlit as st
+import os
+from dotenv import load_dotenv
+
+# Load local .env if it exists (for local testing)
+load_dotenv()
+
+# Get the key from Streamlit Secrets (Cloud) or Environment (Local)
+api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    st.error("API Key is missing. Please add GEMINI_API_KEY to Streamlit Secrets.")
+    st.stop()
+
 
 load_dotenv()
 
