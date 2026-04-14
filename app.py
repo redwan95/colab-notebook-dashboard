@@ -405,24 +405,35 @@ def show_metric(value, label, icon="📊"):
 
 
 def show_notebook_card(nb):
-    """Display notebook with fixed HTML rendering by avoiding indentation traps"""
+    """Display notebook with reinforced rendering and fallback logic"""
     
-    # 1. Setup data
+    # 1. Extract Data
     name = str(nb.get('name', 'Unnamed Notebook'))
-    category = str(nb.get('category', 'Other'))
-    account = str(nb.get('account', 'Unknown'))
-    summary_content = str(nb.get('summary', nb.get('main_goal', 'No summary available')))
+    category = str(nb.get('category', 'General'))
+    account = str(nb.get('account', 'Default'))
+    
+    # The "Summary" often comes from the 'summary' column, fallback to 'main_goal'
+    raw_summary = nb.get('summary')
+    if not raw_summary or str(raw_summary).strip() == "" or str(raw_summary) == "None":
+        raw_summary = nb.get('main_goal', "⚠️ No AI analysis found. Please run agent.py.")
+    
+    summary_content = str(raw_summary)
+    
+    # 2. Extract Technical Stats
+    lines = int(nb.get('total_code_lines', 0) or 0)
+    modified = str(nb.get('modified_time', 'Unknown'))[:10]
     colab_link = str(nb.get('colab_link', '#'))
     drive_link = str(nb.get('web_link', '#'))
     analyzed = int(nb.get('analyzed', 0))
+    
     status_html = f'<span class="status-badge status-analyzed">✅ AI Analyzed</span>' if analyzed else f'<span class="status-badge status-pending">⏳ Pending</span>'
 
-    # 2. Render the Top of the Card
+    # 3. The Layout (Single HTML block to prevent Streamlit Markdown interference)
     st.markdown(f"""
-    <div class="notebook-card" style="margin-bottom: 0px; border-bottom: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
-        <div style="display: flex; justify-content: space-between; align-items: start;">
+    <div class="notebook-card">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
             <div style="flex: 1;">
-                <h3 class="notebook-title" style="margin: 0;">📓 {name}</h3>
+                <h3 class="notebook-title" style="margin: 0; color: #58a6ff;">📓 {name}</h3>
                 <div style="margin-top: 10px;">
                     <span class="tag tag-category">{category}</span>
                     <span class="tag tag-account">{account}</span>
@@ -430,34 +441,27 @@ def show_notebook_card(nb):
                 </div>
             </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 3. THE CRITICAL FIX: Render the summary in a separate, CLEAN block
-    # We wrap it in a div that matches the notebook-card style but has NO INDENTATION in the f-string
-    summary_html = f'<div class="notebook-card" style="margin-top: -1px; border-top: none; border-radius: 0; padding-top: 0; padding-bottom: 5px;">{summary_content}</div>'
-    st.markdown(summary_html, unsafe_allow_html=True)
-
-    # 4. Render the Bottom of the Card (Metadata)
-    lines = int(nb.get('total_code_lines', 0) or 0)
-    modified = str(nb.get('modified_time', 'Unknown'))[:10]
-    st.markdown(f"""
-    <div class="notebook-card" style="margin-top: -1px; border-top: none; border-top-left-radius: 0; border-top-right-radius: 0; padding-top: 0;">
-        <div style="display: flex; gap: 20px; color: #6e7681; font-size: 0.9rem; border-top: 1px solid #30363d; padding-top: 15px;">
-            <span>📝 {lines:,} lines</span>
-            <span>🕒 {modified}</span>
+        
+        <div class="summary-box" style="background: rgba(48, 54, 61, 0.2); border-radius: 8px; padding: 15px; margin: 15px 0; border: 1px solid #30363d;">
+            <div style="color: #c9d1d9; font-size: 0.95rem; line-height: 1.6;">
+                {summary_content}
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 20px; color: #6e7681; font-size: 0.85rem; margin-top: 10px;">
+            <span>📝 {lines:,} Code Lines</span>
+            <span>🕒 Last Modified: {modified}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # 5. Buttons
+    # 4. Interactive Buttons
     col1, col2 = st.columns(2)
     with col1:
         st.link_button("🚀 Open in Colab", colab_link, use_container_width=True)
     with col2:
         if drive_link != '#':
             st.link_button("📂 View in Drive", drive_link, use_container_width=True)
-
 
 # ============================================
 # MAIN APP
