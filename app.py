@@ -29,6 +29,19 @@ if not api_key:
 
 
 load_dotenv()
+"""
+AI-Powered Colab Notebook Manager - Stable Version
+Robust, error-free, works on Streamlit Cloud
+"""
+
+import streamlit as st
+import sqlite3
+import pandas as pd
+import json
+import plotly.express as px
+import plotly.graph_objects as go
+import os
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(
@@ -38,77 +51,65 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Enhanced CSS for beautiful UI
+# ==========================================
+# CSS STYLING - Dark Beautiful Theme
+# ==========================================
 st.markdown("""
 <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* Main theme */
-    :root {
-        --primary: #6366f1;
-        --primary-dark: #4f46e5;
-        --secondary: #ec4899;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --bg-dark: #0f172a;
-        --bg-card: #1e293b;
-        --text-primary: #f1f5f9;
-        --text-secondary: #94a3b8;
+    /* Main app background */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
     }
     
-    /* Dark mode body */
-    .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        font-family: 'Inter', sans-serif;
+    /* Headers */
+    h1, h2, h3 {
+        color: #f1f5f9 !important;
     }
     
     /* Main header */
     .main-header {
-        font-size: 3rem;
+        font-size: 2.5rem;
         font-weight: 700;
         background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
-        padding: 20px 0;
-        margin-bottom: 30px;
+        padding: 20px;
     }
     
-    /* Sidebar styling */
+    /* Sidebar */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
         border-right: 1px solid #334155;
     }
     
-    /* Metric cards */
-    .metric-card {
+    /* Metric boxes */
+    .metric-box {
         background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
         border-radius: 16px;
         padding: 25px;
         border: 1px solid #475569;
         text-align: center;
-        transition: all 0.3s ease;
+        transition: all 0.3s;
     }
     
-    .metric-card:hover {
+    .metric-box:hover {
         transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
         border-color: #6366f1;
+        box-shadow: 0 15px 30px rgba(99, 102, 241, 0.2);
     }
     
     .metric-value {
-        font-size: 3rem;
+        font-size: 2.5rem;
         font-weight: 700;
         color: #6366f1;
         margin: 0;
     }
     
     .metric-label {
-        font-size: 1rem;
+        font-size: 0.9rem;
         color: #94a3b8;
-        margin-top: 10px;
+        margin-top: 8px;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
@@ -118,11 +119,10 @@ st.markdown("""
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         border-radius: 16px;
         padding: 25px;
-        margin: 15px 0;
+        margin: 20px 0;
         border: 1px solid #334155;
-        transition: all 0.3s ease;
+        transition: all 0.3s;
         position: relative;
-        overflow: hidden;
     }
     
     .notebook-card::before {
@@ -133,11 +133,11 @@ st.markdown("""
         width: 4px;
         height: 100%;
         background: linear-gradient(180deg, #6366f1, #ec4899);
+        border-radius: 4px 0 0 4px;
     }
     
     .notebook-card:hover {
-        transform: translateX(10px);
-        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        transform: translateX(5px);
         border-color: #6366f1;
     }
     
@@ -145,51 +145,57 @@ st.markdown("""
     .tag {
         background: linear-gradient(135deg, #6366f1, #8b5cf6);
         color: white;
-        padding: 5px 14px;
+        padding: 6px 14px;
         border-radius: 20px;
         margin: 4px;
         display: inline-block;
-        font-size: 0.8rem;
-        font-weight: 500;
+        font-size: 0.85rem;
     }
     
     .tag-category {
         background: linear-gradient(135deg, #ec4899, #f43f5e);
     }
     
-    .tag-status-inprogress {
-        background: linear-gradient(135deg, #f59e0b, #eab308);
-        color: #000;
-    }
-    
-    .tag-status-completed {
-        background: linear-gradient(135deg, #10b981, #059669);
-    }
-    
-    /* Buttons */
-    .stButton > button {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        border: none;
+    /* Info boxes */
+    .info-box {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-left: 4px solid #6366f1;
+        padding: 20px;
         border-radius: 12px;
-        padding: 12px 24px;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        margin: 15px 0;
     }
     
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #4f46e5, #7c3aed);
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+    /* Text colors */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > div {
+        background-color: #1e293b !important;
+        color: #f1f5f9 !important;
+        border: 1px solid #475569 !important;
     }
     
-    /* Links */
-    a {
-        color: #6366f1;
-        text-decoration: none;
+    /* Status indicator */
+    .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 8px;
     }
     
-    /* Section headers */
+    .status-green { background: #10b981; }
+    .status-yellow { background: #f59e0b; }
+    .status-blue { background: #6366f1; }
+    
+    /* Stats in sidebar */
+    .sidebar-stats {
+        background: #1e293b;
+        padding: 15px;
+        border-radius: 12px;
+        margin: 10px 0;
+    }
+    
+    /* Section header */
     .section-header {
         color: #f1f5f9;
         font-size: 1.5rem;
@@ -199,118 +205,201 @@ st.markdown("""
         border-bottom: 2px solid #334155;
     }
     
-    /* Status indicators */
-    .status-dot {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 8px;
+    /* Links */
+    a {
+        color: #6366f1 !important;
     }
     
-    .status-active { background: #10b981; }
-    .status-pending { background: #f59e0b; }
-    .status-analyzed { background: #6366f1; }
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #1e293b;
+        border-radius: 12px;
+    }
     
-    /* Info boxes */
-    .info-box {
-        background: linear-gradient(135deg, #1e293b, #334155);
-        border-left: 4px solid #6366f1;
-        padding: 20px;
+    .stTabs [data-baseweb="tab"] {
+        color: #94a3b8;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #f1f5f9;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #6366f1 !important;
+        color: white !important;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: #1e293b;
         border-radius: 8px;
-        margin: 15px 0;
     }
     
-    /* Hide default streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stDecoration"] {display: none;}
-    
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
+    /* Success/Error messages */
+    .success-box {
+        background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+        padding: 15px;
+        border-radius: 12px;
+        margin: 10px 0;
     }
     
-    ::-webkit-scrollbar-track {
-        background: #1e293b;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #475569;
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
-    }
-    
-    /* Charts container */
-    .chart-container {
-        background: #1e293b;
-        border-radius: 16px;
-        padding: 20px;
-        border: 1px solid #334155;
+    .error-box {
+        background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
+        padding: 15px;
+        border-radius: 12px;
+        margin: 10px 0;
     }
 </style>
 """, unsafe_allow_html=True)
 
-
-# Database helper class
+# ==========================================
+# DATABASE CLASS
+# ==========================================
 class NotebookDatabase:
+    """Handle all database operations"""
+    
     def __init__(self, db_path='database.db'):
         self.db_path = db_path
-        
-    def get_all_notebooks(self):
-        conn = sqlite3.connect(self.db_path)
-        query = "SELECT * FROM notebooks ORDER BY modified_time DESC"
-        df = pd.read_sql_query(query, conn)
-        conn.close()
-        return df
+        self._ensure_database()
     
-    def get_statistics(self):
+    def _ensure_database(self):
+        """Create database and tables if they don't exist"""
+        if not os.path.exists(self.db_path):
+            conn = sqlite3.connect(self.db_path)
+            conn.close()
+        
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        stats = {}
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS notebooks (
+                id TEXT,
+                name TEXT,
+                account TEXT,
+                created_time TEXT,
+                modified_time TEXT,
+                web_link TEXT,
+                colab_link TEXT,
+                size INTEGER,
+                code_content TEXT,
+                markdown_content TEXT,
+                total_code_lines INTEGER,
+                scanned_at TEXT,
+                analyzed INTEGER DEFAULT 0,
+                summary TEXT,
+                tags TEXT,
+                category TEXT,
+                main_goal TEXT,
+                key_findings TEXT,
+                technologies TEXT,
+                PRIMARY KEY (id, account)
+            )
+        ''')
         
-        cursor.execute("SELECT COUNT(*) FROM notebooks")
-        stats['total'] = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM notebooks WHERE analyzed = 1")
-        stats['analyzed'] = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT category, COUNT(*) as count FROM notebooks WHERE category IS NOT NULL GROUP BY category")
-        stats['by_category'] = dict(cursor.fetchall())
-        
-        cursor.execute("SELECT SUM(total_code_lines) FROM notebooks")
-        stats['total_lines'] = cursor.fetchone()[0] or 0
-        
-        cursor.execute("SELECT account, COUNT(*) as count FROM notebooks GROUP BY account")
-        stats['by_account'] = dict(cursor.fetchall())
-        
+        conn.commit()
         conn.close()
+    
+    def get_all_notebooks(self):
+        """Get all notebooks"""
+        try:
+            if not os.path.exists(self.db_path):
+                return pd.DataFrame()
+            
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query("SELECT * FROM notebooks ORDER BY modified_time DESC", conn)
+            conn.close()
+            return df
+        except Exception as e:
+            st.error(f"Error loading notebooks: {e}")
+            return pd.DataFrame()
+    
+    def get_statistics(self):
+        """Get summary statistics"""
+        stats = {
+            'total': 0,
+            'analyzed': 0,
+            'pending': 0,
+            'by_category': {},
+            'by_account': {},
+            'total_lines': 0
+        }
+        
+        try:
+            if not os.path.exists(self.db_path):
+                return stats
+            
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT COUNT(*) FROM notebooks")
+            stats['total'] = cursor.fetchone()[0] or 0
+            
+            cursor.execute("SELECT COUNT(*) FROM notebooks WHERE analyzed = 1")
+            stats['analyzed'] = cursor.fetchone()[0] or 0
+            
+            stats['pending'] = stats['total'] - stats['analyzed']
+            
+            cursor.execute("SELECT category, COUNT(*) FROM notebooks WHERE category IS NOT NULL GROUP BY category")
+            stats['by_category'] = dict(cursor.fetchall())
+            
+            cursor.execute("SELECT account, COUNT(*) FROM notebooks GROUP BY account")
+            stats['by_account'] = dict(cursor.fetchall())
+            
+            cursor.execute("SELECT SUM(total_code_lines) FROM notebooks WHERE total_code_lines IS NOT NULL")
+            stats['total_lines'] = cursor.fetchone()[0] or 0
+            
+            conn.close()
+        except Exception as e:
+            print(f"Error getting stats: {e}")
+        
         return stats
     
     def search_notebooks(self, search_term):
-        conn = sqlite3.connect(self.db_path)
-        query = f"""
-            SELECT * FROM notebooks 
-            WHERE name LIKE '%{search_term}%' 
-            OR summary LIKE '%{search_term}%'
-            OR tags LIKE '%{search_term}%'
-            OR category LIKE '%{search_term}%'
-            ORDER BY modified_time DESC
-        """
-        df = pd.read_sql_query(query, conn)
-        conn.close()
-        return df
+        """Search notebooks"""
+        try:
+            if not os.path.exists(self.db_path):
+                return pd.DataFrame()
+            
+            conn = sqlite3.connect(self.db_path)
+            
+            query = """
+                SELECT * FROM notebooks 
+                WHERE name LIKE ? OR summary LIKE ? OR tags LIKE ? OR category LIKE ?
+                ORDER BY modified_time DESC
+            """
+            search = f"%{search_term}%"
+            df = pd.read_sql_query(query, conn, params=(search, search, search, search))
+            conn.close()
+            return df
+        except Exception as e:
+            st.error(f"Error searching: {e}")
+            return pd.DataFrame()
+    
+    def get_recent_notebooks(self, limit=5):
+        """Get recent notebooks"""
+        try:
+            if not os.path.exists(self.db_path):
+                return pd.DataFrame()
+            
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query(
+                f"SELECT * FROM notebooks ORDER BY modified_time DESC LIMIT {limit}", 
+                conn
+            )
+            conn.close()
+            return df
+        except Exception as e:
+            return pd.DataFrame()
 
 
+# ==========================================
+# HELPER FUNCTIONS
+# ==========================================
 def display_metric_card(value, label, icon="📊"):
-    """Display a beautiful metric card"""
+    """Display a metric card"""
     st.markdown(f"""
-    <div class="metric-card">
-        <div style="font-size: 2.5rem; margin-bottom: 10px;">{icon}</div>
+    <div class="metric-box">
+        <div style="font-size: 2rem; margin-bottom: 10px;">{icon}</div>
         <p class="metric-value">{value:,}</p>
         <p class="metric-label">{label}</p>
     </div>
@@ -318,266 +407,282 @@ def display_metric_card(value, label, icon="📊"):
 
 
 def display_notebook_card(notebook):
-    """Display a beautiful notebook card"""
-    tags = json.loads(notebook['tags']) if notebook['tags'] else []
-    tags_html = "".join([f"<span class='tag'>{tag}</span>" for tag in tags])
-    
-    # Status color
-    analyzed = notebook.get('analyzed', 0)
-    status_class = "status-analyzed" if analyzed else "status-pending"
-    status_text = "✅ AI Analyzed" if analyzed else "⏳ Pending"
-    
-    # Account badge
-    account = notebook.get('account', 'Unknown')
-    
-    colab_link = notebook.get('colab_link', '#')
-    drive_link = notebook.get('web_link', '#')
-    
-    st.markdown(f"""
-    <div class="notebook-card">
-        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-            <div>
-                <h3 style="color: #f1f5f9; margin: 0; font-size: 1.3rem;">
-                    📓 {notebook['name']}
-                </h3>
-                <div style="margin-top: 8px;">
-                    <span class="tag tag-category">{notebook.get('category', 'Uncategorized')}</span>
-                    <span class="tag tag-status-{account.lower()}">{account}</span>
+    """Display a notebook as a card"""
+    try:
+        # Parse tags
+        tags_str = notebook.get('tags', '')
+        if tags_str:
+            try:
+                tags = json.loads(tags_str)
+            except:
+                tags = [tags_str]
+        else:
+            tags = []
+        
+        tags_html = "".join([f"<span class='tag'>{tag}</span>" for tag in tags[:8]])
+        
+        # Get values with defaults
+        name = notebook.get('name', 'Unnamed Notebook')
+        category = notebook.get('category', 'Uncategorized')
+        summary = notebook.get('summary', notebook.get('main_goal', 'No summary available'))
+        main_goal = notebook.get('main_goal', 'Not specified')
+        code_lines = notebook.get('total_code_lines', 0) or 0
+        modified = notebook.get('modified_time', 'Unknown')
+        analyzed = notebook.get('analyzed', 0)
+        account = notebook.get('account', 'Unknown')
+        colab_link = notebook.get('colab_link', '#')
+        web_link = notebook.get('web_link', '#')
+        
+        # Status indicator
+        if analyzed:
+            status_html = "<span class='status-indicator status-green'></span>✅ Analyzed"
+        else:
+            status_html = "<span class='status-indicator status-yellow'></span>⏳ Pending"
+        
+        st.markdown(f"""
+        <div class="notebook-card">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                <div>
+                    <h3 style="color: #f1f5f9; margin: 0;">📓 {name}</h3>
+                    <div style="margin-top: 10px;">
+                        <span class="tag tag-category">{category}</span>
+                        <span class="tag">{account}</span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    {status_html}
                 </div>
             </div>
-            <div style="text-align: right;">
-                <span class="status-dot {status_class}"></span>
-                <span style="color: #94a3b8; font-size: 0.85rem;">{status_text}</span>
-            </div>
-        </div>
-        
-        <p style="color: #cbd5e1; margin: 15px 0; line-height: 1.6;">
-            {notebook.get('summary', notebook.get('main_goal', 'No summary available'))}
-        </p>
-        
-        <p style="color: #94a3b8; font-size: 0.9rem; margin: 10px 0;">
-            <strong style="color: #f1f5f9;">🎯 Goal:</strong> {notebook.get('main_goal', 'Not specified')}
-        </p>
-        
-        <div style="margin: 15px 0;">
-            <strong style="color: #94a3b8;">🏷️ Tags:</strong><br>
-            {tags_html}
-        </div>
-        
-        <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
-            <div style="color: #94a3b8; font-size: 0.85rem;">
-                <span style="color: #6366f1;">📝</span> {notebook.get('total_code_lines', 0):,} lines
-            </div>
-            <div style="color: #94a3b8; font-size: 0.85rem;">
-                <span style="color: #ec4899;">🕒</span> {notebook.get('modified_time', 'Unknown')[:10]}
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <a href="{colab_link}" target="_blank" style="
-                background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 10px;
-                text-decoration: none;
-                font-weight: 600;
-                flex: 1;
-                text-align: center;
-            ">🚀 Open in Colab</a>
             
-            <a href="{drive_link}" target="_blank" style="
-                background: linear-gradient(135deg, #1e293b, #334155);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 10px;
-                text-decoration: none;
-                font-weight: 600;
-                flex: 1;
-                text-align: center;
-                border: 1px solid #475569;
-            ">📂 View in Drive</a>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def main():
-    st.markdown("<h1 class='main-header'>🤖 AI Colab Manager</h1>", unsafe_allow_html=True)
-    
-    db = NotebookDatabase()
-    
-    # Sidebar
-    with st.sidebar:
-        st.markdown("""
-        <div style="text-align: center; padding: 20px 0;">
-            <img src="https://www.gstatic.com/colaboratory/assets/colab-logo.svg" width="80">
-            <h2 style="color: #f1f5f9; margin-top: 15px;">Colab Manager</h2>
+            <p style="color: #cbd5e1; margin: 15px 0; line-height: 1.6;">
+                {summary}
+            </p>
+            
+            <p style="color: #94a3b8; font-size: 0.9rem; margin: 10px 0;">
+                <strong style="color: #f1f5f9;">🎯 Goal:</strong> {main_goal}
+            </p>
+            
+            <div style="margin: 15px 0;">
+                <strong style="color: #94a3b8;">🏷️ Technologies:</strong><br>
+                {tags_html}
+            </div>
+            
+            <div style="display: flex; gap: 20px; margin: 15px 0; color: #94a3b8; font-size: 0.85rem;">
+                <span>📝 {code_lines:,} lines</span>
+                <span>🕒 {modified[:10] if modified else 'Unknown'}</span>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <a href="{colab_link}" target="_blank" style="
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 10px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    flex: 1;
+                    text-align: center;
+                ">🚀 Open in Colab</a>
+                
+                <a href="{web_link}" target="_blank" style="
+                    background: #1e293b;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 10px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    flex: 1;
+                    text-align: center;
+                    border: 1px solid #475569;
+                ">📂 Drive Link</a>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Action buttons
-        st.markdown("### 🎯 Quick Actions")
-        
-        scan_clicked = st.button("🔄 Scan Drive", use_container_width=True)
-        
-        analyze_clicked = st.button("🧠 Analyze All", use_container_width=True)
-        
-        if scan_clicked:
-            with st.spinner("🔍 Scanning Google Drive..."):
-                try:
-                    result = subprocess.run(["python", "scanner.py"], 
-                                          capture_output=True, text=True, timeout=300)
-                    st.success("✅ Scan complete!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-        
-        if analyze_clicked:
-            with st.spinner("🧠 Analyzing with AI..."):
-                try:
-                    result = subprocess.run(["python", "agent.py"], 
-                                          capture_output=True, text=True, timeout=600)
-                    st.success("✅ Analysis complete!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-        
-        st.markdown("---")
-        
-        # Navigation
-        pages = {
-            "🏠 Dashboard": "dashboard",
-            "📚 All Notebooks": "notebooks",
-            "🔍 Search": "search",
-            "📊 Analytics": "analytics",
-            "⚙️ Settings": "settings"
-        }
-        
-        selected_page = st.radio("Navigation", list(pages.keys()), label_visibility="collapsed")
+    except Exception as e:
+        st.error(f"Error displaying notebook: {e}")
+
+
+# ==========================================
+# MAIN APP
+# ==========================================
+def main():
+    """Main app function"""
+    
+    # Header
+    st.markdown("<h1 class='main-header'>🤖 AI Colab Manager</h1>", unsafe_allow_html=True)
+    
+    # Initialize database
+    db = NotebookDatabase()
+    stats = db.get_statistics()
+    
+    # ==========================================
+    # SIDEBAR
+    # ==========================================
+    with st.sidebar:
+        # Logo and title
+        st.markdown("""
+        <div style="text-align: center; padding: 15px 0;">
+            <img src="https://www.gstatic.com/colaboratory/assets/colab-logo.svg" width="60">
+            <h2 style="color: #f1f5f9; margin-top: 10px; font-size: 1.2rem;">Colab Manager</h2>
+        </div>
+        """, unsafe_allow_html=True)
         
         st.markdown("---")
         
         # Quick stats
-        stats = db.get_statistics()
         st.markdown("### 📈 Quick Stats")
         st.markdown(f"""
-        <div class="info-box">
-            <p style="color: #f1f5f9; margin: 5px 0;">
-                <span class="status-dot status-active"></span>
-                Total: {stats['total']}
+        <div class="sidebar-stats">
+            <p style="color: #f1f5f9; margin: 8px 0;">
+                <span class='status-indicator status-blue'></span>
+                Total: <strong>{stats['total']}</strong>
             </p>
-            <p style="color: #f1f5f9; margin: 5px 0;">
-                <span class="status-dot status-analyzed"></span>
-                Analyzed: {stats['analyzed']}
+            <p style="color: #f1f5f9; margin: 8px 0;">
+                <span class='status-indicator status-green'></span>
+                Analyzed: <strong>{stats['analyzed']}</strong>
             </p>
-            <p style="color: #f1f5f9; margin: 5px 0;">
-                <span style="color: #6366f1;">📝</span>
-                Code Lines: {stats['total_lines']:,}
+            <p style="color: #f1f5f9; margin: 8px 0;">
+                <span class='status-indicator status-yellow'></span>
+                Pending: <strong>{stats['pending']}</strong>
+            </p>
+            <p style="color: #f1f5f9; margin: 8px 0;">
+                📝 Lines: <strong>{stats['total_lines']:,}</strong>
             </p>
         </div>
         """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Instructions
+        with st.expander("📖 How to Use"):
+            st.markdown("""
+            **First Time Setup:**
+            1. Run `scanner.py` to scan Drive
+            2. Run `agent.py` to analyze with AI
+            3. Refresh this page
+            
+            **Navigation:**
+            - Use the tabs below to browse
+            - Use search to find notebooks
+            
+            **Tips:**
+            - Click "Open in Colab" to jump directly to a notebook
+            """)
+        
+        st.markdown("---")
+        
+        # Navigation radio
+        selected = st.radio(
+            "Navigation",
+            ["🏠 Dashboard", "📚 All Notebooks", "🔍 Search", "📊 Analytics", "⚙️ Help"],
+            label_visibility="collapsed"
+        )
     
-    # Main content based on page
-    page = pages[selected_page]
+    # ==========================================
+    # PAGE CONTENT
+    # ==========================================
     
-    if page == "dashboard":
-        show_dashboard(db)
-    elif page == "notebooks":
+    if selected == "🏠 Dashboard":
+        show_dashboard(db, stats)
+    
+    elif selected == "📚 All Notebooks":
         show_all_notebooks(db)
-    elif page == "search":
-        show_search(db)
-    elif page == "analytics":
-        show_analytics(db)
-    elif page == "settings":
-        show_settings()
-
-
-def show_dashboard(db):
-    """Main dashboard with beautiful cards"""
-    stats = db.get_statistics()
     
-    # Hero metrics
+    elif selected == "🔍 Search":
+        show_search(db)
+    
+    elif selected == "📊 Analytics":
+        show_analytics(db, stats)
+    
+    elif selected == "⚙️ Help":
+        show_help()
+
+
+# ==========================================
+# PAGES
+# ==========================================
+def show_dashboard(db, stats):
+    """Dashboard page"""
+    st.markdown('<p class="section-header">📊 Overview</p>', unsafe_allow_html=True)
+    
+    # Metrics row
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        display_metric_card(stats['total'], "Total Notebooks", "📓")
+        display_metric_card(stats['total'], "Total", "📓")
     with col2:
-        display_metric_card(stats['analyzed'], "AI Analyzed", "🧠")
+        display_metric_card(stats['analyzed'], "Analyzed", "🧠")
     with col3:
-        display_metric_card(stats['total'] - stats['analyzed'], "Pending", "⏳")
+        display_metric_card(stats['pending'], "Pending", "⏳")
     with col4:
-        display_metric_card(stats['total_lines'], "Lines of Code", "📝")
+        display_metric_card(stats['total_lines'], "Lines", "📝")
     
     st.markdown("---")
     
-    # Recent notebooks section
-    st.markdown('<p class="section-header">🕒 Recently Modified Notebooks</p>', unsafe_allow_html=True)
+    # Recent notebooks
+    st.markdown('<p class="section-header">🕒 Recent Notebooks</p>', unsafe_allow_html=True)
     
-    df = db.get_all_notebooks()
+    df = db.get_recent_notebooks(5)
     
     if df.empty:
         st.markdown("""
         <div class="info-box" style="text-align: center; padding: 40px;">
             <h3 style="color: #f1f5f9;">👋 Welcome!</h3>
-            <p style="color: #94a3b8;">Click "🔄 Scan Drive" in the sidebar to get started.</p>
+            <p style="color: #94a3b8; margin-top: 10px;">
+                No notebooks found. Run the scanner first!
+            </p>
+            <p style="color: #94a3b8; margin-top: 10px;">
+                1. Open terminal in project folder<br>
+                2. Run: <code>python scanner.py</code><br>
+                3. Run: <code>python agent.py</code><br>
+                4. Refresh this page
+            </p>
         </div>
         """, unsafe_allow_html=True)
-        return
+    else:
+        for _, nb in df.iterrows():
+            display_notebook_card(nb)
     
-    # Display 3 recent notebooks
-    recent = df.head(3)
-    for _, nb in recent.iterrows():
-        display_notebook_card(nb)
-    
-    # Quick actions
-    st.markdown("---")
-    st.markdown('<p class="section-header">⚡ Quick Actions</p>', unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("📓 View All Notebooks", use_container_width=True):
-            st.session_state['page'] = 'notebooks'
-            st.rerun()
-    
-    with col2:
-        if st.button("🔍 Search Notebooks", use_container_width=True):
-            st.session_state['page'] = 'search'
-            st.rerun()
-    
-    with col3:
-        if st.button("📊 View Analytics", use_container_width=True):
-            st.session_state['page'] = 'analytics'
-            st.rerun()
+    # Category overview
+    if stats['by_category']:
+        st.markdown("---")
+        st.markdown('<p class="section-header">📂 Categories</p>', unsafe_allow_html=True)
+        
+        # Create columns for categories
+        categories = list(stats['by_category'].keys())
+        cols = st.columns(min(4, len(categories)))
+        
+        for i, cat in enumerate(categories[:4]):
+            with cols[i]:
+                count = stats['by_category'][cat]
+                st.metric(cat, count)
 
 
 def show_all_notebooks(db):
-    """All notebooks with filters"""
+    """All notebooks page"""
     st.markdown('<p class="section-header">📚 All Notebooks</p>', unsafe_allow_html=True)
     
     df = db.get_all_notebooks()
     
     if df.empty:
-        st.info("No notebooks found. Click 'Scan Drive' in the sidebar.")
+        st.info("No notebooks found. Run the scanner first!")
         return
     
     # Filters
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
+        categories = ['All'] + sorted([c for c in df['category'].dropna().unique() if c])
         selected_cat = st.selectbox("📁 Category", categories)
     
     with col2:
-        accounts = ['All'] + sorted(df['account'].unique().tolist())
+        accounts = ['All'] + sorted([a for a in df['account'].unique() if a])
         selected_account = st.selectbox("👤 Account", accounts)
     
     with col3:
-        analyzed_filter = st.selectbox("📊 Status", ["All", "Analyzed", "Pending"])
+        status_filter = st.selectbox("📊 Status", ["All", "Analyzed", "Pending"])
     
-    # Filter data
+    # Apply filters
     filtered = df.copy()
     
     if selected_cat != 'All':
@@ -586,102 +691,88 @@ def show_all_notebooks(db):
     if selected_account != 'All':
         filtered = filtered[filtered['account'] == selected_account]
     
-    if analyzed_filter == "Analyzed":
+    if status_filter == "Analyzed":
         filtered = filtered[filtered['analyzed'] == 1]
-    elif analyzed_filter == "Pending":
+    elif status_filter == "Pending":
         filtered = filtered[filtered['analyzed'] == 0]
     
-    st.markdown(f"### Showing {len(filtered)} of {len(df)} notebooks")
+    st.info(f"Showing {len(filtered)} of {len(df)} notebooks")
     
-    # Display all filtered notebooks
+    # Display
     for _, nb in filtered.iterrows():
         display_notebook_card(nb)
 
 
 def show_search(db):
-    """Search functionality"""
+    """Search page"""
     st.markdown('<p class="section-header">🔍 Search Notebooks</p>', unsafe_allow_html=True)
     
     search_term = st.text_input(
-        "What are you looking for?",
-        placeholder="e.g., 'machine learning', 'tensorflow', 'image classification', 'nlp'...",
+        "Search",
+        placeholder="Type to search (e.g., machine learning, tensorflow, nlp)...",
         label_visibility="collapsed"
     )
     
     if search_term:
         results = db.search_notebooks(search_term)
         
-        st.markdown(f"### Found {len(results)} results for '{search_term}'")
-        
         if results.empty:
             st.markdown("""
-            <div class="info-box">
-                <p style="color: #94a3b8; text-align: center;">No results found. Try different keywords.</p>
+            <div class="info-box" style="text-align: center;">
+                <p style="color: #94a3b8;">No results found for your search.</p>
+                <p style="color: #94a3b8;">Try different keywords.</p>
             </div>
             """, unsafe_allow_html=True)
         else:
+            st.success(f"Found {len(results)} results for '{search_term}'")
+            
             for _, nb in results.iterrows():
                 display_notebook_card(nb)
     else:
-        # Suggested searches
-        st.markdown("### 💡 Try searching for:")
-        
-        col1, col2, col3 = st.columns(3)
+        # Quick search suggestions
+        st.markdown("### 💡 Quick Search")
         
         suggestions = [
             ("Machine Learning", "machine learning"),
             ("Deep Learning", "deep learning"),
-            ("Data Analysis", "data analysis"),
-            ("NLP", "nlp, natural language"),
-            ("Computer Vision", "vision, image"),
+            ("NLP", "nlp"),
             ("TensorFlow", "tensorflow"),
             ("PyTorch", "pytorch"),
-            ("Research", "research"),
-            ("Experiment", "experiment")
+            ("Data Analysis", "data analysis"),
         ]
         
+        cols = st.columns(3)
+        
         for i, (label, term) in enumerate(suggestions):
-            col = i % 3
-            if i < 3:
-                with col1:
-                    if st.button(f"🔍 {label}"):
-                        st.session_state['search_term'] = term
-                        st.rerun()
-            elif i < 6:
-                with col2:
-                    if st.button(f"🔍 {label}"):
-                        st.session_state['search_term'] = term
-                        st.rerun()
-            else:
-                with col3:
-                    if st.button(f"🔍 {label}"):
-                        st.session_state['search_term'] = term
-                        st.rerun()
+            with cols[i % 3]:
+                if st.button(f"🔍 {label}", key=f"search_{i}"):
+                    st.session_state['search_term'] = term
+                    results = db.search_notebooks(term)
+                    
+                    st.success(f"Found {len(results)} results")
+                    for _, nb in results.iterrows():
+                        display_notebook_card(nb)
 
 
-def show_analytics(db):
-    """Analytics with charts"""
-    st.markdown('<p class="section-header">📊 Analytics Dashboard</p>', unsafe_allow_html=True)
+def show_analytics(db, stats):
+    """Analytics page"""
+    st.markdown('<p class="section-header">📊 Analytics</p>', unsafe_allow_html=True)
     
     df = db.get_all_notebooks()
     
     if df.empty:
-        st.warning("No data available. Scan your notebooks first.")
+        st.info("No data available. Scan your notebooks first!")
         return
     
-    stats = db.get_statistics()
-    
-    # Overview metrics
-    col1, col2, col3, col4 = st.columns(4)
+    # Top metrics
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        display_metric_card(len(df), "Total", "📓")
+        display_metric_card(stats['total'], "Total Notebooks", "📓")
     with col2:
-        display_metric_card(len(df[df['category'] == 'Machine Learning']), "ML", "🤖")
+        display_metric_card(stats['total_lines'], "Total Code Lines", "📝")
     with col3:
-        display_metric_card(len(df[df['category'] == 'Deep Learning']), "DL", "🧠")
-    with col4:
-        display_metric_card(stats['total_lines'], "Code Lines", "📝")
+        display_metric_card(len(stats['by_category']), "Categories", "📁")
     
     st.markdown("---")
     
@@ -689,7 +780,7 @@ def show_analytics(db):
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 📂 Category Distribution")
+        st.markdown("### 📂 By Category")
         
         if stats['by_category']:
             fig = px.pie(
@@ -702,12 +793,12 @@ def show_analytics(db):
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 font_color='#f1f5f9',
-                legend=dict(color='#f1f5f9')
+                legend=dict(font_color='#f1f5f9')
             )
             st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.markdown("### 👤 Account Distribution")
+        st.markdown("### 👤 By Account")
         
         if stats['by_account']:
             fig = px.bar(
@@ -724,7 +815,7 @@ def show_analytics(db):
             st.plotly_chart(fig, use_container_width=True)
     
     # Popular tags
-    st.markdown("### 🏷️ Most Used Technologies")
+    st.markdown("### 🏷️ Top Technologies")
     
     all_tags = []
     for tags_str in df['tags'].dropna():
@@ -752,80 +843,28 @@ def show_analytics(db):
         st.plotly_chart(fig, use_container_width=True)
 
 
-def show_settings():
-    """Settings page"""
-    st.markdown('<p class="section-header">⚙️ Settings</p>', unsafe_allow_html=True)
+def show_help():
+    """Help page"""
+    st.markdown('<p class="section-header">⚙️ Help & Information</p>', unsafe_allow_html=True)
     
-    # API Status
-    st.markdown("### 🔑 API Status")
-    
-    api_key = os.getenv('GEMINI_API_KEY')
-    
-    if api_key:
-        st.success(f"✅ Gemini API Key configured ({api_key[:15]}...)")
-    else:
-        st.error("❌ Gemini API Key not found")
-        st.info("Add your API key to the .env file: GEMINI_API_KEY=your_key")
-    
-    st.markdown("---")
-    
-    # Files
-    st.markdown("### 📁 File Status")
-    
-    files_to_check = [
-        ("Database", "database.db"),
-        ("Scanner", "scanner.py"),
-        ("Agent", "agent.py"),
-        ("App", "app.py")
-    ]
-    
-    for name, filepath in files_to_check:
-        exists = os.path.exists(filepath)
-        status = "✅ Found" if exists else "❌ Missing"
-        color = "success" if exists else "error"
-        
-        if exists:
-            size = os.path.getsize(filepath)
-            st.markdown(f"- **{name}**: {status} ({size:,} bytes)")
-        else:
-            st.markdown(f"- **{name}**: {status}")
-    
-    st.markdown("---")
-    
-    # Help
-    st.markdown("### 📖 Help")
-    
-    with st.expander("ℹ️ How to Use"):
+    with st.expander("🚀 Quick Start Guide", expanded=True):
         st.markdown("""
-        **Quick Start:**
-        1. Click **"🔄 Scan Drive"** to scan your Colab notebooks
-        2. Click **"🧠 Analyze All"** to generate AI insights
-        3. Browse and search your notebooks here
+        **Step 1: Run the Scanner**
+        ```
+        python scanner.py
+        ```
+        This scans your Google Drive for Colab notebooks.
         
-        **Automation:**
-        - Set up Windows Task Scheduler for automatic daily scans
-        - Or run scripts manually from your terminal
+        **Step 2: Run the AI Analyzer**
+        ```
+        python agent.py
+        ```
+        This analyzes your notebooks using Google Gemini AI.
         
-        **Searching:**
-        - Use keywords like 'machine learning', 'tensorflow', 'nlp'
-        - Search by category, tags, or notebook name
+        **Step 3: View Dashboard**
+        ```
+        python -m streamlit run app.py
+        ```
+        Open http://localhost:8501 in your browser.
         """)
     
-    with st.expander("🐛 Troubleshooting"):
-        st.markdown("""
-        **Issue: No notebooks found**
-        - Make sure you have service account credentials set up
-        - Check that you've shared your Drive folders with the service account
-        
-        **Issue: Analysis failing**
-        - Check your Gemini API key is valid
-        - Make sure you have internet connection
-        
-        **Issue: App not loading**
-        - Refresh the page
-        - Check if database.db exists
-        """)
-
-
-if __name__ == "__main__":
-    main()
