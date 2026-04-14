@@ -407,7 +407,7 @@ def show_metric(value, label, icon="📊"):
 def show_notebook_card(nb):
     """Display notebook with WORKING clickable buttons and rendered HTML summary"""
     
-    # Parse tags safely
+    # 1. Parse tags safely
     tags = []
     if nb.get('tags'):
         try:
@@ -417,23 +417,23 @@ def show_notebook_card(nb):
     
     tags_html = ''.join([f'<span class="tag">{t}</span>' for t in tags[:8]])
     
-    # Get values
+    # 2. Extract values and handle the "Summary" HTML correctly
     name = str(nb.get('name', 'Unnamed Notebook'))
     category = str(nb.get('category', 'Other'))
-    # This is the AI-generated content that contains HTML tags
-    summary_content = str(nb.get('summary', nb.get('main_goal', 'No summary available')))
-    goal = str(nb.get('main_goal', 'Not specified'))
+    account = str(nb.get('account', 'Unknown'))
     lines = int(nb.get('total_code_lines', 0) or 0)
     modified = str(nb.get('modified_time', 'Unknown'))[:10]
     colab_link = str(nb.get('colab_link', '#'))
     drive_link = str(nb.get('web_link', '#'))
     analyzed = int(nb.get('analyzed', 0))
-    account = str(nb.get('account', 'Unknown'))
+    
+    # THE CORE FIX: Get the raw summary. If it contains <p> tags from the agent, 
+    # we must ensure it's not nested inside another <p> tag in Streamlit.
+    summary_content = str(nb.get('summary', nb.get('main_goal', 'No summary available')))
     
     status_html = f'<span class="status-badge status-analyzed">✅ AI Analyzed</span>' if analyzed else f'<span class="status-badge status-pending">⏳ Pending</span>'
     
-    # Render the card container and the summary content
-    # We use unsafe_allow_html=True so the <p> and <span> tags from the agent actually render
+    # 3. The Layout - We use a single <div> container for the whole card
     st.markdown(f"""
     <div class="notebook-card">
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
@@ -447,7 +447,7 @@ def show_notebook_card(nb):
             </div>
         </div>
         
-        <div style="margin: 15px 0; border-top: 1px solid #30363d; padding-top: 10px;">
+        <div class="summary-section" style="margin: 15px 0; color: #8b949e;">
             {summary_content}
         </div>
         
@@ -463,23 +463,13 @@ def show_notebook_card(nb):
     </div>
     """, unsafe_allow_html=True)
     
-    # Clickable buttons using Streamlit native components (placed outside the HTML div for stability)
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.link_button(
-            "🚀 Open in Colab",
-            colab_link,
-            use_container_width=True
-        )
-    
-    with col2:
+    # 4. Buttons (Kept outside the markdown for reliable clicking)
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        st.link_button("🚀 Open in Colab", colab_link, use_container_width=True)
+    with btn_col2:
         if drive_link != '#':
-            st.link_button(
-                "📂 View in Drive",
-                drive_link,
-                use_container_width=True
-            )
+            st.link_button("📂 View in Drive", drive_link, use_container_width=True)
 
 
 # ============================================
