@@ -65,53 +65,51 @@ class NotebookAnalyzer:
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         
-        cursor.execute("SELECT id, name, code_content FROM notebooks WHERE analyzed = 0")
+        # We only want ones that are NOT analyzed OR have no summary
+        cursor.execute("SELECT id, name, code_content FROM notebooks WHERE analyzed = 0 OR summary IS NULL")
         rows = cursor.fetchall()
         
         if not rows:
-            print("✨ All notebooks are already analyzed!")
+            print("✨ No notebooks need analysis.")
             return
 
-        print(f"🚀 Analyzing {len(rows)} notebooks...")
-        
         for row in rows:
             nb_id, name, content = row
-            print(f"Processing: {name}...")
+            print(f"🤖 Analyzing: {name}...")
             
             try:
-                nb_data = json.loads(content)
-                cells = nb_data.get('cells', [])
-                
-                # FIXED: Correctly join the list of strings in 'source'
-                code_cells = ["".join(c['source']) for c in cells if c['cell_type'] == 'code']
-                markdown_cells = ["".join(c['source']) for c in cells if c['cell_type'] == 'markdown']
-                
-                analysis = self.analyze_notebook(code_cells, markdown_cells, name)
+                # 1. Handle JSON or Raw Text
+                try:
+                    nb_data = json.loads(content)
+                    cells = nb_data.get('cells', [])
+                    code_snippets = ["".join(c.get('source', [])) for c in cells if c.get('cell_type') == 'code']
+                    full_text = "\n".join(code_snippets[:15]) # Get first 15 cells
+                except:
+                    full_text = str(content)[:5000] # Fallback to raw text
+
+                # 2. Get AI Analysis
+                analysis = self.analyze_notebook([full_text], [], name)
                 
                 if analysis:
+                    # 3. Force update the database
                     cursor.execute("""
                         UPDATE notebooks 
-                        SET category = ?, 
-                            summary = ?, 
-                            tags = ?, 
-                            main_goal = ?, 
-                            analyzed = 1 
+                        SET category = ?, summary = ?, tags = ?, main_goal = ?, analyzed = 1 
                         WHERE id = ?
                     """, (
-                        analysis.get('category'),
-                        analysis.get('summary'),
-                        json.dumps(analysis.get('tags')),
-                        analysis.get('main_goal'),
+                        analysis.get('category', 'Other'),
+                        analysis.get('summary', 'No summary generated'),
+                        json.dumps(analysis.get('tags', [])),
+                        analysis.get('main_goal', 'No goal specified'),
                         nb_id
                     ))
                     conn.commit()
-                    print(f"   ✅ Success")
+                    print(f"   ✅ Saved summary for {name}")
                 
-                time.sleep(1) # Rate limit safety
+                time.sleep(2) # Avoid hitting API limits
                 
             except Exception as e:
-                print(f"   ❌ Failed {name}: {e}")
-                continue
+                print(f"   ❌ Failed on {name}: {e}")
         
         conn.close()
         print("\n🎉 Analysis finished. Run 'streamlit run app.py' to see results!")
